@@ -1,0 +1,13 @@
+name = "HA_solver"
+uuid = "60d9e96c-d5a4-43c1-b737-28649846eb38"
+authors = ["janrosa1 <you@example.comjan.rosa1993@gmail.com> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
