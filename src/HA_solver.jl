@@ -1,6 +1,6 @@
 module HA_solver
 
-using  LinearAlgebra, Interpolations, Plots
+using  LinearAlgebra, Interpolations, Plots, Random
 
 
 function SolveHAEq(Params, NumParams, StartVal, SolveAgP, SolveDistr, UpdateGEq, ConvSolParam, SaveHAEq; maxiter = 1000)
@@ -83,7 +83,7 @@ function SolveAgP_Huggett_EGM(Params, NumParams, q; maxiter=1000)
     con_measure = ones(ϵ_n,a_n)
 
     #ITERATIONS STARTS HERE
-    while( maximum(abs.(con_measure))>=1e-6 && iter<=maxiter )
+    while( maximum(abs.(con_measure))>=1e-7 && iter<=maxiter )
         if(iter!=0)
             policy_c_old = copy(policy_c_new)
         end
@@ -118,6 +118,129 @@ function SolveAgP_Huggett_EGM(Params, NumParams, q; maxiter=1000)
     
     
     return(policy_c_new, policy_a, a_grid)   
+end
+function MarkovChain_sim(start_val, M, P) 
+    ϵ_n = size(P,1)
+    rand_choices = rand(M)
+    P_increasing = zeros(ϵ_n,ϵ_n)
+    P_increasing[:,1] = P[:,1]
+    shock_history = zeros(M)
+    for j = 1: ϵ_n
+        for jj = 2:ϵ_n
+            P_increasing[j,jj]=  P_increasing[j,jj-1]+P[j,jj]
+        end
+    end
+
+    for i  in 1:M
+        sim_val = 0
+        for jj in 1:ϵ_n
+            if P_increasing[start_val,jj] >= rand_choices[i]
+                shock_history[i] = jj
+                break
+            end    
+
+        end
+        if sim_val == 0
+            shock_history[i] = ϵ_n
+        end
+        start_val = shock_history[i]
+    end
+    return shock_history
+end
+
+function SolveDistr_Hugget_MC(Params, NumParams, Policy; sim_chunk = 250, sim_num= 1000, burnout = 500, maxiter = 10 )
+    β = Params[1]
+    σ = Params[2]
+    ϵ_vals = Params[3]
+    P = Params[4]
+    ϵ_n = size(P,1)
+    
+    a_n = NumParams[1]
+    a_grid  = NumParams[2] 
+    a_min = NumParams[3]
+
+    policy_c = Policy[1]
+    Policy_func_c = Array{Function}(undef,ϵ_n)
+
+
+    for j in 1:ϵ_n
+        Policy_func_c[j] = LinearInterpolation(a_grid, policy_c[j,:] , extrapolation_bc = Flat())
+    end
+
+    
+    
+    Shock_realizations = zeros(maxsim,2*sim_chunk+burnout) 
+    Asset_hist = zeros(sim,burnout+ maxiter*sim_chunk) 
+    c_hist =  
+
+
+    start_ϵ = 1
+    start_a = 0.0
+
+    for i = 1:sim_num
+        Shock_realizations[i,:] = MarkovChain_sim(start_ϵ, (2*sim_chunk+burnout), P)
+    end
+
+
+end
+
+
+function SolveDistr_Hugget_Iter(Params, NumParams,q, Policy; maxiter = 1000 )
+    β = Params[1]
+    σ = Params[2]
+    ϵ_vals = Params[3]
+    P = Params[4]
+    ϵ_n = size(P,1)
+    
+    a_n = NumParams[1]
+    a_grid  = NumParams[2] 
+    a_min = NumParams[3]
+
+    
+    Policy_func_c =  Array{Function}(undef,ϵ_n)
+    start_ϵ = 1
+    start_a = searchsortedlast(a_grid, 0.0)
+
+    for j in 1:ϵ_n
+        Policy_func_c[j] = LinearInterpolation(a_grid, policy_c[j,:] , extrapolation_bc = Flat())
+    end
+    measure_old = zeros(ϵ_n,a_n)
+    measure_new = zeros(ϵ_n,a_n)
+    
+    measure_new[start_ϵ, start_a] = 1.0
+    con_measure =ones(ϵ_n, a_n)
+
+
+    while(maximum(abs.(con_measure))>=1e-8 && iter<=maxiter)
+        measure_old = measure_new
+        for j in 1:ϵ_n 
+            for i in 1:a_n
+                if measure_old[j,i]!=0.0
+                    c = Policy_func_c[j](a_grid[i])
+                    a_new = 1/q*(ϵ_vals[j] + a_grid[i]-c)
+                    a_new_ongrid_1 = searchsortedlast(a_grid, a_new)
+                    a_new_ongrid_2 = a_new_ongrid_1+1
+                    if a_new_ongrid_1 ==0
+                        a_new_ongrid_1 = 1
+                        weight = 1.0
+                    else
+                        weight = (a_new-a_grid[a_new_ongrid_1])/(a_grid[a_new_ongrid_2]-a_grid[a_new_ongrid_1])
+                    end
+                    
+                    for jj in 1:ϵ_n 
+                        measure_new[jj,a_new_ongrid_1] =  P[j,jj]*(1-weight)*measure_old[j,i]
+                        measure_new[jj,a_new_ongrid_2] = P[j,jj]*weight* measure_old[j,i]
+                    end
+
+                end
+            end
+
+        end
+
+        con_measure = policy_c_old-policy_c_new
+        iter =iter+1 
+    end
+    return measure_new
 end
 
 

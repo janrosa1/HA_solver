@@ -19,3 +19,6 @@ plot(NumParams[2], policy_c[1,:], label = "income =1.0")
 plot!(NumParams[2], policy_c[2,:], label = "income =0.1")
 #save  plot and check the shape of consumption function
 png("plot_policies")
+Policy = (policy_c, policy_a, grid)
+
+measure = SolveDistr_Hugget_Iter(Params, NumParams,q, Policy)
