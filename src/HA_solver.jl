@@ -47,6 +47,9 @@ General function to solve HetergnousAgentsEquilibrium,
     
     
 end
+########################################################################################################
+#HERE STARTS THE FUNCTIONS FOR THE HUGGETT MODEL
+#######################################################################################################
 
 #find q using bisection (thats why I need update params here - its lbub vector (upper and lower bound))
 function UpdateGEq_Hugget_bisection(Params,SolParam_old, ass_sum,lbub, iter)
@@ -75,7 +78,7 @@ function UpdateGEq_Hugget_bisection(Params,SolParam_old, ass_sum,lbub, iter)
 end
 
 function SaveHAEq_Hugget(Policy,Distr, q)
-    #ok this might be better, for now just plot policy functions and print q (but q ia ok) 
+    #ok this might be better, for now just plot policy functions and print q (but q is ok) 
     policy_c = Policy[1]
     plot(Policy[3], policy_c[1,:], label = "income =1.0")
     plot!(Policy[3], policy_c[2,:], label = "income =0.1")
@@ -171,7 +174,7 @@ function SolveAgP_Huggett_EGM(Params, NumParams, q; maxiter=2000)
     return (policy_c_new, policy_a, a_grid)   
 end
 
-#Additional function for monte calrlo simulation, might be helpful 
+#Additional function for monte calrlo simulation, might be helpful , for now not used
 function MarkovChain_sim(start_val, M, P) 
     ϵ_n = size(P,1)
     rand_choices = rand(M)
@@ -201,42 +204,8 @@ function MarkovChain_sim(start_val, M, P)
     return shock_history
 end
 
-#this function is not finished, will compute the Monte Carlo simulation 
-function SolveDistr_Hugget_MC(Params, NumParams, Policy; sim_chunk = 250, sim_num= 1000, burnout = 500, maxiter = 10 )
-    β = Params[1]
-    σ = Params[2]
-    ϵ_vals = Params[3]
-    P = Params[4]
-    ϵ_n = size(P,1)
-    
-    a_n = NumParams[1]
-    a_grid  = NumParams[2] 
-    a_min = NumParams[3]
-
-    policy_c = Policy[1]
-    Policy_func_c = Array{Function}(undef,ϵ_n)
 
 
-    for j in 1:ϵ_n
-        Policy_func_c[j] = LinearInterpolation(a_grid, policy_c[j,:] , extrapolation_bc = Flat())
-    end
-
-    
-    
-    Shock_realizations = zeros(maxsim,2*sim_chunk+burnout) 
-    Asset_hist = zeros(sim,burnout+ maxiter*sim_chunk) 
-    c_hist =  
-
-
-    start_ϵ = 1
-    start_a = 0.0
-
-    for i = 1:sim_num
-        Shock_realizations[i,:] = MarkovChain_sim(start_ϵ, (2*sim_chunk+burnout), P)
-    end
-
-
-end
 
 
 function SolveDistr_Hugget_Iter(Params, NumParams,q, Policy; maxiter = 1000 )
@@ -323,6 +292,10 @@ function SolveDistr_Hugget_Iter(Params, NumParams,q, Policy; maxiter = 1000 )
 end
 
 function Find_eq_Hugget(Params, NumParams)
+    """
+    These functions solve hugget model for the parameters tuple, using the genral function SolveHAEq and defined above specific functions for Huggett model
+
+    """
     start_q = Params[6] #it should be lower bound  
     flag_init = 10.0 #this for sure is not 0, so loop will not stop at first iteration
     #params for bisection
