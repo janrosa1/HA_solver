@@ -1,6 +1,6 @@
 using HA_solver
-using Test
+using Test, Random
 
-@testset "HA_solver.jl" begin
-    # Write your tests here.
-end
+include("test_Ayiagari.jl")
+include("test_utils.jl")
+include("NGS_test.jl")

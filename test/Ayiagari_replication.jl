@@ -31,7 +31,7 @@ Model.start_r =0.02
 
 σ_set = [1.0, 3.0, 5.0]
 ρ_set = [0.0, 0.3, 0.6, 0.9]
-sigma_earnings = [0.4]
+sigma_earnings = [0.2,0.4]
     #orginal solution from Ayiagari
     println(eachindex(σ_set))
 r_computed = zeros(3,4,2)
@@ -57,13 +57,12 @@ for s in eachindex(sigma_earnings)
             end
 
             Model.sigma_e = sigma_earnings[s]
-            println(i)
-            println(σ_set[i])
+           
             r_computed[i,j,s] = HA_solver.Find_eq_Ayiagari(Model) 
             
         end
     end
 end
 
-write("replicated_sigma=02", r_computed[:,:,1])
-write("replicated_sigma=04", r_computed[:,:,2])
+write("replicated_sigma=02.csv", r_computed[:,:,1])
+write("replicated_sigma=04.csv", r_computed[:,:,2])

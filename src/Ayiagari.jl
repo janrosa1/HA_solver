@@ -22,6 +22,7 @@ mutable struct Ayiagari_params{T<:Real, I<:Int64, C<:String}
     start_r :: T
 end
 
+#outer constructor 
 function Ayiagari_params()
     Ayiagari_params(0.99, 3.0, 0.1, 0.36, 0.9, 0.2, 200, 9, 0.01, 0.015, 0.0, 0.9, "R", 0.03)
 end
@@ -50,10 +51,31 @@ function UnpackAyiagari_params(A::Ayiagari_params)
     a_min = A.a_min
     start_r = A.start_r
 
+    #check if the params are properly defined     
+
+    @assert β < 1.0
+    @assert β > 0.0
+    @assert σ >= 1.0
+    @assert α < 1.0
+    @assert α > 0.0
+    @assert γ < 1.0
+    @assert γ > 0.0 
+    @assert δ <= 1.0
+    @assert δ >= 0.0 
+    @assert rho < 1.0 
+    @assert rho >= 0.0 
+    @assert sigma_e > 0.0
+    @assert start_r < 1.0/β -1.0
+    @assert a_n >10 #use at least 10 points for asset grid, ideally at least 100
+    @assert e_n >0   
+    @assert 2*e_n < a_n # should have much more asset grid points     
+    @assert g > 0.0 
+    @assert Δ > 0.0     
+    
     #discretize earnings process
     P, e_val =  HA_solver.DiscretizeAR(rho, sigma_e, e_n,MC)   
     #Define numerical parameters, like grid
-    NumParams = define_NumParam(a_n, Δ, g, a_min, 0.001)
+    NumParams = define_NumParam(a_n, Δ, g, a_min, 0.0001)
     #define a tuple of the rest of paramters
     Params = (β,σ, e_val, P, a_min, start_r, nothing, α, γ, δ)
     return NumParams, Params
@@ -63,42 +85,60 @@ end
 function UpdateGEq_Ayiagari_r(Params,SolParam_old, k, lbub, iter)
     """
     function for updating the guess for the interest rate to solve the model
+     
+    lbub is an additional param, might be useful after generalizing the model    
     """
     # k: capital derived from the demand for capital 
-    #unpack params    
+    #unpack params 
+    β = Params[1]   
     α = Params[8]
     γ = Params[9]
     δ = Params[10]
 
+    @assert α < 1.0
+    @assert α > 0.0
+    @assert γ < 1.0
+    @assert γ > 0.0 
+    @assert δ <= 1.0
+    @assert δ >= 0.0 
+    @assert k >= 0.0 
+    
     r_old = last(SolParam_old)
     #find the capital derived form the old and new interest rate (previous and old iteration)
     k_old = ((r_old+δ)/α)^(1.0/(α-1.0))
 
     # update the capital and teh interest rate   
-    k_new  =  γ *k_old+(1.0-γ)*k
-    r_new = α*k_new^(α-1)- δ 
+    k_new  =  γ *k_old+(1.0-γ)*k    
+
+    r_new = α*k_new^(α-1)- δ
+    @assert r_new >= -1.0 
+
     #print r     
     println("r is ", r_new)
-    return  r_new, nothing
+    return  r_new, nothing #in different specification, I might add some flag here, so the second point here
 end
 
-function ConvSolParam_Ayiagari_r(SolParam_old, SolParam_new, ass_sum, maxiter, iter)
+function ConvSolParam_Ayiagari_r(SolParam_old, SolParam_new, k, maxiter, iter)
     """
     function for checking the convergence of the model (finding the interest rate)
     """
     #print the iteration
-
     println(iter)
 
-    if(iter == 1)
+
+
+    if(iter == 1) #always do at leats one iteration
         return 1>0
     else
-        return abs(SolParam_new- last(SolParam_old))>1e-8 && iter<=maxiter
+        @assert !isnothing(SolParam_old)
+        @assert length(SolParam_old) !== 0
+        return abs(SolParam_new- last(SolParam_old))>1e-6 && iter<=maxiter
     end
 end
 
 function SaveHAEq_Ayiagari(Policy,Distr, r)
     #Quick save the equilibrium
+
     policy_c = Policy[1]
     ϵ_n = size(policy_c)[1]
     for i in 2:ϵ_n
@@ -108,7 +148,7 @@ function SaveHAEq_Ayiagari(Policy,Distr, r)
     println(" equilibrium r is ", r)
 end
 
-function SolveAgP_Ayiagari_EGM(Params, NumParams, r; maxiter=2000)
+function SolveAgP_Ayiagari_EGM(Params, NumParams, r; maxiter=6000)
     """
     Find consumption and asset policies using Endogenous grid method
     """
@@ -118,7 +158,8 @@ function SolveAgP_Ayiagari_EGM(Params, NumParams, r; maxiter=2000)
     ϵ_vals = copy(Params[3])
     P = Params[4]
     δ = Params[10] 
-    α = Params[8]        
+    α = Params[8]  
+
     ϵ_n = size(P,1)
     k = ((r+δ)/α)^(1/(α-1))
     w = (1-α)*k^(α)
@@ -127,7 +168,36 @@ function SolveAgP_Ayiagari_EGM(Params, NumParams, r; maxiter=2000)
     a_n = NumParams[1]
     a_grid  = NumParams[2] 
     a_min = max(NumParams[3], -minimum(ϵ_vals)/r)
-   
+
+    #starts checks
+    @assert β < 1.0
+    @assert β > 0.0
+    @assert σ >= 1.0
+    @assert α < 1.0
+    @assert α > 0.0
+    @assert a_n > 10 
+    @assert δ <= 1.0
+    @assert δ >= 0.0 
+    @assert size(P,1) == size(P,2)
+
+    #check if P is proper Markov chain
+    check_P =1
+
+    for i in 1:size(P,1)
+        if(!isapprox(sum(P[i,:]), 1.0))
+            check_P = 0
+        end
+    end
+    @assert check_P == 1
+
+    
+
+    
+
+
+
+    @assert a_grid == sort(a_grid) #check if the grid is sorted 
+
     #initialize policies
     policy_c_old = zeros(ϵ_n,a_n)
     policy_c_new = zeros(ϵ_n,a_n)
@@ -185,10 +255,12 @@ function SolveAgP_Ayiagari_EGM(Params, NumParams, r; maxiter=2000)
 
     
     
-    return (policy_c_new, policy_a, a_grid)   
+    return (policy_c_new, policy_a, a_grid, maximum(abs.(con_measure)))   #last one is not a policy, but it is useful for tests
 end
 
-function SolveDistr_Ayiagari_Iter(Params, NumParams,r, Policy; maxiter = 100000 )
+
+
+function SolveDistr_Ayiagari_Iter(Params, NumParams,r, Policy; maxiter = 1000 )
     """
     This function finds the distribution using the updaing over the grid (instead of Monte Carlo). I just start with some initial probability measure, update it for all possible events (rounding the future assets to grid points)
     is preatty fast, but might not work that well with huge state space    
@@ -196,17 +268,30 @@ function SolveDistr_Ayiagari_Iter(Params, NumParams,r, Policy; maxiter = 100000 
     """
     #read params
     δ = Params[10]   
-    α = Params[8]      
-    k = ((r+δ)/α)^(1.0/(α-1.0))
-   
-    w = (1-α)*k^(α)
-
+    α = Params[8]    
     ϵ_vals = copy(Params[3])
-    ϵ_vals = w*copy(ϵ_vals)
-    println(ϵ_vals)
-    println(k)
-
     P = Params[4]
+
+    #check if params are ok
+    @assert α < 1.0
+    @assert α > 0.0
+    @assert δ <= 1.0
+    @assert δ >= 0.0 
+    #check if P is proper Markov chain
+    check_P =1
+
+    for i in 1:size(P,1)
+        if(!isapprox(sum(P[i,:]), 1.0))
+            check_P = 0
+        end
+    end
+    @assert check_P == 1
+
+    k = ((r+δ)/α)^(1.0/(α-1.0))
+    w = (1-α)*k^(α)
+    ϵ_vals = w*copy(ϵ_vals)
+
+
     ϵ_n = size(P,1)
 
     a_n = NumParams[1]
@@ -293,12 +378,11 @@ function Find_eq_Ayiagari(A::Ayiagari_params)
     NumParams, Params = UnpackAyiagari_params(A)
     
     println("Ayiagari model computation starts")
-    start_r = Params[6] #it should be lower bound  
-    flag_init = 1e10 #this for sure is not 0, so loop will not stop at first iteration
-    #params for bisection
-    lbub = Params[9]
+    start_r = Params[6] 
+    flag_init = 1e10 #this for sure is not 0, so loop will not stop at first iteration, so far I do not use any additional flag to finish the iteration, but might use it in the future
     #Now add the special functions for Hugget model to the general function 
-    r = SolveHAEq(Params, NumParams, start_r, SolveAgP_Ayiagari_EGM, SolveDistr_Ayiagari_Iter, UpdateGEq_Ayiagari_r, ConvSolParam_Ayiagari_r, SaveHAEq_Ayiagari, flag_init,lbub)
+    update_flag = nothing #for now, I doe not need to update params, or flag
+    r = SolveHAEq(Params, NumParams, start_r, SolveAgP_Ayiagari_EGM, SolveDistr_Ayiagari_Iter, UpdateGEq_Ayiagari_r, ConvSolParam_Ayiagari_r, SaveHAEq_Ayiagari, flag_init,update_flag)
     #Done if we done
     println("DONE")
     return last(r)    

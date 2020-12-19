@@ -1,9 +1,30 @@
 module HA_solver
 
-using  LinearAlgebra, Interpolations, Plots, Random, QuantEcon 
+using  LinearAlgebra, Interpolations, Random, QuantEcon
+using  NLsolve, QuadGK, SmolyakApprox, ChebyshevApprox, Statistics, DataFrames, Distributions
+using Plots
+function SolveRAEq(Params, SolveRAP, SolveDistr, SaveRAEq )
+
+    """
+    General function to solve HetergnousAgentsEquilibrium, 
+    
+    Inputs:
+
+    Params: Tuple or structure of paramters (as this model do not read params a lot, we allow for the structure not only tuple)
+    
+    SolveRAP: solve representative agent problem (there are a lots of methods, which are self contained, so we are as much general as we can) 
+    SolveDistr: find distribution of agents in the economy given Policy and params
+    SaveHAEq: save policy functions, distributions etc, produce plots
+    """
+
+    Policy, Grid = SolveRAP(Params) #policy might, be function or set of values
+    Sim_results = SolveDistr(Params, Policy)
+
+    SaveRAEq(Params, Policy, Sim_results, Grid) 
 
 
 
+end
 
 function SolveHAEq(Params, NumParams, StartVal, SolveAgP, SolveDistr, UpdateGEq, ConvSolParam, SaveHAEq, flag_init, update_Params; maxiter = 1000)
 """
@@ -51,5 +72,5 @@ end
 include("util.jl")
 include("Hugget.jl")
 include("Ayiagari.jl")
-
+include("NC_growth.jl")
 end
