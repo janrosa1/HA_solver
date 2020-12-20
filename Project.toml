@@ -19,6 +19,7 @@ SmolyakApprox = "6b19cf85-48de-5d9d-bfff-465abea14fab"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
+DataFrames = "0.22"
 Plots = "1.7"
 julia = "1"
 
