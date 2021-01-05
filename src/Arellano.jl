@@ -695,7 +695,7 @@ function Save_Arellano(Model::Arellano_params, Model_solution, Sim_results, Grid
     p4 = plot(Grid[140:180], hcat(V_f[9,140:180], V_f[13,140:180]),label = ["y_low" "y_high"], ylabel = "V_f", xlabel = "B'")
     plot(p3,p4,layout = (1, 2))
     png("figure_4")
-
+    #read the file for figure 5 replication
     input = CSV.File("shocks_y.csv",  header=false)
     data_input = zeros(35)
     for  i in 1:35
@@ -706,7 +706,7 @@ function Save_Arellano(Model::Arellano_params, Model_solution, Sim_results, Grid
     Y, TB, R, D = History_simulation(Model, Model_solution, input_int)
     println("default series ", D)
 
-   
+   #write the data for figure 5
     outfile = "results.txt"
     open(outfile, "w") do f
         for i in 1:length(Y)
