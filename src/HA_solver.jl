@@ -1,7 +1,7 @@
 module HA_solver
 
 using  LinearAlgebra, Interpolations, Random, QuantEcon
-using  NLsolve, QuadGK, SmolyakApprox, ChebyshevApprox, Statistics, DataFrames, Distributions
+using  NLsolve, QuadGK, SmolyakApprox, ChebyshevApprox, Statistics, DataFrames, Distributions, CSV
 using Plots
 function SolveRAEq(Params, SolveRAP, SolveDistr, SaveRAEq )
 
@@ -73,4 +73,5 @@ include("util.jl")
 include("Hugget.jl")
 include("Ayiagari.jl")
 include("NC_growth.jl")
+include("Arellano.jl")
 end
